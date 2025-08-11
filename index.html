@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片消消乐</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366F1',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                    },
+                    fontFamily: {
+                        game: ['"Comic Sans MS"', 'cursive', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .tile-hover {
+                @apply transform scale-105 shadow-md transition-all duration-200;
+            }
+            .tile-selected {
+                @apply ring-4 ring-accent;
+            }
+            .消除动画 {
+                animation:消除 0.4s ease-out forwards;
+            }
+            @keyframes 消除 {
+                0% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.3); opacity: 0.7; }
+                100% { transform: scale(0); opacity: 0; }
+            }
+            .下落动画 {
+                transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-purple-100 min-h-screen font-game">
+    <div class="container mx-auto px-4 py-6 max-w-5xl">
+        <!-- 标题区域 -->
+        <header class="text-center mb-6">
+            <h1 class="text-[clamp(1.8rem,5vw,3rem)] font-bold text-primary mb-2">
+                <i class="fa fa-th-large mr-2"></i>图片消消乐
+            </h1>
+            <p class="text-gray-600 mb-4">设置图片，生成短链接分享给好友</p>
+        </header>
+        
+        <!-- 游戏状态区域 -->
+        <div class="flex flex-wrap justify-center gap-3 md:gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-md px-4 py-2 md:px-6 md:py-3 flex items-center">
+                <i class="fa fa-star text-accent text-xl mr-2"></i>
+                <span class="font-bold">分数:</span>
+                <span id="score" class="ml-2 text-xl font-bold text-primary">0</span>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-md px-4 py-2 md:px-6 md:py-3 flex items-center">
+                <i class="fa fa-clock-o text-secondary text-xl mr-2"></i>
+                <span class="font-bold">时间:</span>
+                <span id="time" class="ml-2 text-xl font-bold text-primary">60</span>
+            </div>
+            
+            <button id="resetBtn" class="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md px-4 py-2 md:px-6 md:py-3 flex items-center transition-all">
+                <i class="fa fa-refresh mr-2"></i>重新开始
+            </button>
+            
+            <button id="shareBtn" class="bg-accent hover:bg-accent/90 text-white rounded-xl shadow-md px-4 py-2 md:px-6 md:py-3 flex items-center transition-all hidden">
+                <i class="fa fa-share-alt mr-2"></i>分享游戏
+            </button>
+        </div>
+        
+        <!-- 主要游戏区域 -->
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- 游戏棋盘 -->
+            <div class="flex-1 bg-white rounded-2xl shadow-lg p-3 md:p-5">
+                <div id="gameBoard" class="grid grid-cols-6 gap-1 md:gap-2 aspect-square max-w-md mx-auto">
+                    <!-- 游戏方块将通过JS动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 侧边面板 -->
+            <div class="w-full lg:w-72">
+                <!-- 图片设置面板 -->
+                <div id="imageSetupPanel" class="bg-white rounded-2xl shadow-lg p-5">
+                    <h2 class="text-xl font-bold text-primary mb-4 flex items-center">
+                        <i class="fa fa-picture-o mr-2"></i>设置游戏图片
+                    </h2>
+                    
+                    <p class="text-gray-600 text-sm mb-4">上传4张图片（设置后不可更改）</p>
+                    
+                    <div class="space-y-4">
+                        <!-- 图片上传区域 -->
+                        <div class="space-y-2">
+                            <label class="block text-gray-700 text-sm font-medium">图片1</label>
+                            <div class="flex gap-2">
+                                <input type="file" id="img1" accept="image/*" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <img id="preview1" src="https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/a.jpeg" alt="图片1预览" class="w-10 h-10 object-cover rounded-lg border border-gray-200">
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <label class="block text-gray-700 text-sm font-medium">图片2</label>
+                            <div class="flex gap-2">
+                                <input type="file" id="img2" accept="image/*" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <img id="preview2" src="https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/b.jpeg" alt="图片2预览" class="w-10 h-10 object-cover rounded-lg border border-gray-200">
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <label class="block text-gray-700 text-sm font-medium">图片3</label>
+                            <div class="flex gap-2">
+                                <input type="file" id="img3" accept="image/*" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <img id="preview3" src="https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/c.jpeg" alt="图片3预览" class="w-10 h-10 object-cover rounded-lg border border-gray-200">
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <label class="block text-gray-700 text-sm font-medium">图片4</label>
+                            <div class="flex gap-2">
+                                <input type="file" id="img4" accept="image/*" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <img id="preview4" src="https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/d.jpeg" alt="图片4预览" class="w-10 h-10 object-cover rounded-lg border border-gray-200">
+                            </div>
+                        </div>
+                        
+                        <button id="confirmImagesBtn" class="w-full bg-primary hover:bg-primary/90 text-white rounded-lg py-2.5 font-medium transition-all mt-2">
+                            确认图片并开始游戏
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 游戏信息面板 (默认隐藏) -->
+                <div id="gameInfoPanel" class="bg-white rounded-2xl shadow-lg p-5 hidden">
+                    <h2 class="text-xl font-bold text-primary mb-4 flex items-center">
+                        <i class="fa fa-info-circle mr-2"></i>游戏信息
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-bold text-gray-700 mb-2 text-sm">剩余时间</h3>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                                <div id="timeBar" class="bg-secondary h-2.5 rounded-full" style="width: 100%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500" id="timePercent">100% 时间剩余</p>
+                        </div>
+                        
+                        <div class="p-3 bg-blue-50 rounded-lg">
+                            <h3 class="font-bold text-blue-700 mb-2 text-sm">游戏规则</h3>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• 点击并交换相邻图片</li>
+                                <li>• 3个或以上相同图片连成一线即可消除</li>
+                                <li>• 每消除一个图片得10分</li>
+                                <li>• 时间结束前获得高分</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 分享弹窗 -->
+        <div id="shareModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold text-primary mb-3 flex items-center">
+                    <i class="fa fa-share-alt mr-2"></i>分享游戏
+                </h3>
+                
+                <p class="text-gray-600 text-sm mb-4">复制链接，好友可使用相同图片玩游戏：</p>
+                
+                <div class="flex mb-5">
+                    <input type="text" id="shareLink" class="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" readonly>
+                    <button id="copyLinkBtn" class="bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-r-lg transition-all">
+                        <i class="fa fa-copy"></i>
+                    </button>
+                </div>
+                
+                <div class="text-xs text-gray-500 mb-4">
+                    链接示例: <code>https://你的用户名.github.io/?g=abc123</code>
+                </div>
+                
+                <button id="closeShareBtn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg py-2.5 font-medium transition-all">
+                    关闭
+                </button>
+            </div>
+        </div>
+        
+        <!-- 游戏结束弹窗 -->
+        <div id="gameOverModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 text-center">
+                <h2 class="text-2xl font-bold text-primary mb-2">游戏结束!</h2>
+                <p class="text-gray-600 mb-3">你的最终得分</p>
+                <p id="finalScore" class="text-4xl font-bold text-accent mb-5">0</p>
+                
+                <button id="shareAfterGameBtn" class="w-full bg-accent hover:bg-accent/90 text-white rounded-lg py-3 font-medium transition-all mb-3">
+                    <i class="fa fa-share-alt mr-2"></i>分享我的成绩
+                </button>
+                
+                <button id="playAgainBtn" class="w-full bg-primary hover:bg-primary/90 text-white rounded-lg py-3 font-medium transition-all">
+                    再玩一次
+                </button>
+            </div>
+        </div>
+        
+        <!-- 确认弹窗 -->
+        <div id="confirmModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-5 max-w-md w-full mx-4">
+                <h3 class="text-lg font-bold text-primary mb-3">确认图片设置</h3>
+                <p class="text-gray-600 text-sm mb-4">确认后将使用这些图片开始游戏，且无法再更改。继续吗？</p>
+                
+                <div class="flex gap-3">
+                    <button id="cancelConfirmBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg py-2 font-medium transition-all">
+                        取消
+                    </button>
+                    <button id="acceptConfirmBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg py-2 font-medium transition-all">
+                        确认
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏配置
+        const CONFIG = {
+            gridSize: 6,        // 6x6网格
+            tileTypes: 4,       // 图片类型数量
+            timeLimit: 60,      // 时间限制(秒)
+            pointsPerTile: 10,  // 每个方块的分数
+            storageKey: 'matchGameData', // 本地存储键名
+            shortCodeLength: 6  // 短代码长度
+        };
+        
+        // 游戏状态
+        const game = {
+            grid: [],           // 游戏网格数据
+            score: 0,           // 当前分数
+            timeLeft: CONFIG.timeLimit,  // 剩余时间
+            isProcessing: false,// 是否正在处理动画
+            selectedTile: null, // 选中的方块
+            timer: null,        // 计时器
+            images: [           // 图片资源 - 已更新为最新的GitHub图片
+                "https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/a.jpeg",
+                "https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/b.jpeg",
+                "https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/c.jpeg",
+                "https://raw.githubusercontent.com/mengzhongjue-maker/mengzhongjue2.github.io/848735fb352253ea5f479df63960fa5c9effa433/d.jpeg"
+            ],
+            imagesSet: false,   // 图片是否已设置
+            gameId: null,       // 游戏唯一标识符
+            shareUrl: ""        // 分享链接
+        };
+        
+        // DOM元素
+        const elements = {
+            gameBoard: document.getElementById('gameBoard'),
+            scoreDisplay: document.getElementById('score'),
+            timeDisplay: document.getElementById('time'),
+            timeBar: document.getElementById('timeBar'),
+            timePercent: document.getElementById('timePercent'),
+            resetBtn: document.getElementById('resetBtn'),
+            shareBtn: document.getElementById('shareBtn'),
+            confirmImagesBtn: document.getElementById('confirmImagesBtn'),
+            imageSetupPanel: document.getElementById('imageSetupPanel'),
+            gameInfoPanel: document.getElementById('gameInfoPanel'),
+            gameOverModal: document.getElementById('gameOverModal'),
+            finalScoreDisplay: document.getElementById('finalScore'),
+            playAgainBtn: document.getElementById('playAgainBtn'),
+            shareAfterGameBtn: document.getElementById('shareAfterGameBtn'),
+            shareModal: document.getElementById('shareModal'),
+            shareLink: document.getElementById('shareLink'),
+            copyLinkBtn: document.getElementById('copyLinkBtn'),
+            closeShareBtn: document.getElementById('closeShareBtn'),
+            confirmModal: document.getElementById('confirmModal'),
+            cancelConfirmBtn: document.getElementById('cancelConfirmBtn'),
+            acceptConfirmBtn: document.getElementById('acceptConfirmBtn')
+        };
+        
+        // 初始化游戏
+        function initGame() {
+            // 从本地存储加载数据
+            loadGameData();
+            
+            // 检查URL中是否有游戏ID
+            checkGameIdInUrl();
+            
+            // 重置游戏状态
+            game.grid = createGrid();
+            game.score = 0;
+            game.timeLeft = CONFIG.timeLimit;
+            game.isProcessing = false;
+            game.selectedTile = null;
+            
+            // 更新显示
+            elements.scoreDisplay.textContent = '0';
+            elements.timeDisplay.textContent = CONFIG.timeLimit;
+            updateTimeBar();
+            
+            // 渲染游戏板
+            renderGrid();
+            
+            // 清除现有计时器
+            if (game.timer) clearInterval(game.timer);
+            
+            // 根据图片是否已设置显示不同面板
+            if (game.imagesSet) {
+                showGamePanel();
+                startTimer();
+            } else {
+                showSetupPanel();
+            }
+            
+            // 更新分享按钮状态
+            updateShareButton();
+        }
+        
+        // 生成随机游戏ID
+        function generateGameId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < CONFIG.shortCodeLength; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+        
+        // 检查URL中是否有游戏ID
+        function checkGameIdInUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const gameId = params.get('g');
+            
+            if (gameId) {
+                // 尝试从本地存储加载该游戏ID的配置
+                loadGameByID(gameId);
+            }
+        }
+        
+        // 加载指定ID的游戏配置
+        function loadGameByID(gameId) {
+            const storedData = localStorage.getItem(CONFIG.storageKey);
+            if (storedData) {
+                const allGames = JSON.parse(storedData);
+                if (allGames[gameId]) {
+                    game.images = allGames[gameId].images;
+                    game.imagesSet = true;
+                    game.gameId = gameId;
+                    
+                    // 更新预览图
+                    for (let i = 0; i < CONFIG.tileTypes; i++) {
+                        document.getElementById(`preview${i+1}`).src = game.images[i];
+                    }
+                }
+            }
+        }
+        
+        // 保存游戏数据到本地存储
+        function saveGameData() {
+            if (!game.gameId) {
+                game.gameId = generateGameId();
+            }
+            
+            const storedData = localStorage.getItem(CONFIG.storageKey) || '{}';
+            const allGames = JSON.parse(storedData);
+            
+            // 只保存必要的配置
+            allGames[game.gameId] = {
+                images: game.images,
+                created: new Date().toISOString()
+            };
+            
+            // 限制存储的游戏数量，防止占用过多空间
+            const gameIds = Object.keys(allGames);
+            if (gameIds.length > 20) {
+                // 删除最早的游戏配置
+                const oldestId = gameIds.sort((a, b) => allGames[a].created.localeCompare(allGames[b].created))[0];
+                delete allGames[oldestId];
+            }
+            
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify(allGames));
+        }
+        
+        // 从本地存储加载游戏数据
+        function loadGameData() {
+            const storedData = localStorage.getItem('matchGameUserConfig');
+            if (storedData) {
+                const userConfig = JSON.parse(storedData);
+                if (userConfig.imagesSet) {
+                    game.images = userConfig.images;
+                    game.imagesSet = true;
+                    
+                    // 更新预览图
+                    for (let i = 0; i < CONFIG.tileTypes; i++) {
+                        document.getElementById(`preview${i+1}`).src = game.images[i];
+                    }
+                }
+            }
+        }
+        
+        // 保存用户配置
+        function saveUserConfig() {
+            const userConfig = {
+                images: game.images,
+                imagesSet: true,
+                updated: new Date().toISOString()
+            };
+            
+            localStorage.setItem('matchGameUserConfig', JSON.stringify(userConfig));
+        }
+        
+        // 创建游戏网格
+        function createGrid() {
+            const grid = [];
+            
+            for (let row = 0; row < CONFIG.gridSize; row++) {
+                grid[row] = [];
+                for (let col = 0; col < CONFIG.gridSize; col++) {
+                    // 确保不会初始就有可消除的组合
+                    let type;
+                    do {
+                        type = Math.floor(Math.random() * CONFIG.tileTypes);
+                    } while (checkInitialMatch(row, col, type, grid));
+                    
+                    grid[row][col] = type;
+                }
+            }
+            
+            return grid;
+        }
+        
+        // 检查初始状态是否会形成匹配
+        function checkInitialMatch(row, col, type, grid) {
+            // 检查水平方向
+            if (col >= 2 && 
+                grid[row][col-1] === type && 
+                grid[row][col-2] === type) {
+                return true;
+            }
+            
+            // 检查垂直方向
+            if (row >= 2 && 
+                grid[row-1][col] === type && 
+                grid[row-2][col] === type) {
+                return true;
+            }
+            
+            return false;
+        }
+        
+        // 渲染游戏网格
+        function renderGrid() {
+            elements.gameBoard.innerHTML = '';
+            
+            for (let row = 0; row < CONFIG.gridSize; row++) {
+                for (let col = 0; col < CONFIG.gridSize; col++) {
+                    const tile = document.createElement('div');
+                    const type = game.grid[row][col];
+                    
+                    tile.className = 'bg-white rounded-md shadow-sm overflow-hidden cursor-pointer flex items-center justify-center';
+                    tile.dataset.row = row;
+                    tile.dataset.col = col;
+                    
+                    // 添加图片
+                    const img = document.createElement('img');
+                    img.src = game.images[type];
+                    img.alt = `游戏图片 ${type + 1}`;
+                    img.className = 'w-full h-full object-cover transition-all duration-200';
+                    
+                    tile.appendChild(img);
+                    
+                    // 添加点击事件
+                    tile.addEventListener('click', () => handleTileClick(row, col));
+                    
+                    // 添加悬停效果
+                    tile.addEventListener('mouseenter', () => {
+                        if (!game.isProcessing && !game.selectedTile) {
+                            tile.classList.add('tile-hover');
+                        }
+                    });
+                    
+                    tile.addEventListener('mouseleave', () => {
+                        if (!game.isProcessing && !game.selectedTile) {
+                            tile.classList.remove('tile-hover');
+                        }
+                    });
+                    
+                    elements.gameBoard.appendChild(tile);
+                }
+            }
+        }
+        
+        // 处理方块点击
+        function handleTileClick(row, col) {
+            // 如果正在处理动画或图片未设置，则不响应点击
+            if (game.isProcessing || !game.imagesSet) return;
+            
+            // 如果没有选中的方块，选中当前方块
+            if (!game.selectedTile) {
+                game.selectedTile = { row, col };
+                highlightTile(row, col, true);
+                return;
+            }
+            
+            // 如果点击的是已选中的方块，取消选中
+            if (game.selectedTile.row === row && game.selectedTile.col === col) {
+                highlightTile(row, col, false);
+                game.selectedTile = null;
+                return;
+            }
+            
+            // 检查是否相邻
+            if (isAdjacent(game.selectedTile, { row, col })) {
+                // 交换方块
+                swapTiles(game.selectedTile, { row, col });
+            } else {
+                // 取消之前的选中，选中新方块
+                highlightTile(game.selectedTile.row, game.selectedTile.col, false);
+                game.selectedTile = { row, col };
+                highlightTile(row, col, true);
+            }
+        }
+        
+        // 检查两个方块是否相邻
+        function isAdjacent(tile1, tile2) {
+            const rowDiff = Math.abs(tile1.row - tile2.row);
+            const colDiff = Math.abs(tile1.col - tile2.col);
+            return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+        }
+        
+        // 高亮选中的方块
+        function highlightTile(row, col, highlight) {
+            const tile = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            if (highlight) {
+                tile.classList.add('tile-selected');
+            } else {
+                tile.classList.remove('tile-selected');
+            }
+        }
+        
+        // 交换两个方块
+        function swapTiles(tile1, tile2) {
+            game.isProcessing = true;
+            
+            // 取消高亮
+            highlightTile(tile1.row, tile1.col, false);
+            
+            // 交换数据
+            const temp = game.grid[tile1.row][tile1.col];
+            game.grid[tile1.row][tile1.col] = game.grid[tile2.row][tile2.col];
+            game.grid[tile2.row][tile2.col] = temp;
+            
+            // 更新显示
+            renderGrid();
+            
+            // 检查是否有匹配
+            setTimeout(() => {
+                const matches = findAllMatches();
+                
+                if (matches.length > 0) {
+                    // 有匹配，处理消除
+                    processMatches(matches);
+                } else {
+                    // 没有匹配，交换回来
+                    const temp = game.grid[tile1.row][tile1.col];
+                    game.grid[tile1.row][tile1.col] = game.grid[tile2.row][tile2.col];
+                    game.grid[tile2.row][tile2.col] = temp;
+                    
+                    // 更新显示
+                    renderGrid();
+                    game.isProcessing = false;
+                }
+                
+                // 重置选中状态
+                game.selectedTile = null;
+            }, 300);
+        }
+        
+        // 查找所有匹配
+        function findAllMatches() {
+            const matches = [];
+            
+            // 检查水平匹配
+            for (let row = 0; row < CONFIG.gridSize; row++) {
+                let col = 0;
+                while (col < CONFIG.gridSize - 2) {
+                    const currentType = game.grid[row][col];
+                    if (currentType === game.grid[row][col + 1] && 
+                        currentType === game.grid[row][col + 2]) {
+                        // 找到匹配，记录所有连续的方块
+                        let matchLength = 3;
+                        let currentCol = col + 3;
+                        
+                        while (currentCol < CONFIG.gridSize && 
+                               game.grid[row][currentCol] === currentType) {
+                            matchLength++;
+                            currentCol++;
+                        }
+                        
+                        // 添加匹配到列表
+                        for (let i = 0; i < matchLength; i++) {
+                            matches.push({ row, col: col + i });
+                        }
+                        
+                        col = currentCol;
+                    } else {
+                        col++;
+                    }
+                }
+            }
+            
+            // 检查垂直匹配
+            for (let col = 0; col < CONFIG.gridSize; col++) {
+                let row = 0;
+                while (row < CONFIG.gridSize - 2) {
+                    const currentType = game.grid[row][col];
+                    if (currentType === game.grid[row + 1][col] && 
+                        currentType === game.grid[row + 2][col]) {
+                        // 找到匹配，记录所有连续的方块
+                        let matchLength = 3;
+                        let currentRow = row + 3;
+                        
+                        while (currentRow < CONFIG.gridSize && 
+                               game.grid[currentRow][col] === currentType) {
+                            matchLength++;
+                            currentRow++;
+                        }
+                        
+                        // 添加匹配到列表
+                        for (let i = 0; i < matchLength; i++) {
+                            matches.push({ row: row + i, col });
+                        }
+                        
+                        row = currentRow;
+                    } else {
+                        row++;
+                    }
+                }
+            }
+            
+            return matches;
+        }
+        
+        // 处理匹配
+        function processMatches(matches) {
+            if (matches.length === 0) {
+                game.isProcessing = false;
+                return;
+            }
+            
+            // 计算得分
+            game.score += matches.length * CONFIG.pointsPerTile;
+            elements.scoreDisplay.textContent = game.score;
+            
+            // 标记匹配的方块并添加消除动画
+            matches.forEach(({ row, col }) => {
+                const tile = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                tile.classList.add('消除动画');
+            });
+            
+            // 等待动画完成后移除匹配的方块
+            setTimeout(() => {
+                // 移除匹配的方块（设为null）
+                matches.forEach(({ row, col }) => {
+                    game.grid[row][col] = null;
+                });
+                
+                // 下落动画
+                dropTiles();
+            }, 400);
+        }
+        
+        // 处理方块下落
+        function dropTiles() {
+            // 对每一列处理下落
+            for (let col = 0; col < CONFIG.gridSize; col++) {
+                // 下落现有方块
+                for (let row = CONFIG.gridSize - 1; row > 0; row--) {
+                    if (game.grid[row][col] === null) {
+                        // 查找上方第一个非空方块
+                        for (let aboveRow = row - 1; aboveRow >= 0; aboveRow--) {
+                            if (game.grid[aboveRow][col] !== null) {
+                                // 移动方块
+                                game.grid[row][col] = game.grid[aboveRow][col];
+                                game.grid[aboveRow][col] = null;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // 顶部补充新方块
+                for (let row = 0; row < CONFIG.gridSize; row++) {
+                    if (game.grid[row][col] === null) {
+                        game.grid[row][col] = Math.floor(Math.random() * CONFIG.tileTypes);
+                    }
+                }
+            }
+            
+            // 更新显示
+            renderGrid();
+            
+            // 检查是否有新的匹配
+            setTimeout(() => {
+                const newMatches = findAllMatches();
+                if (newMatches.length > 0) {
+                    processMatches(newMatches);
+                } else {
+                    game.isProcessing = false;
+                }
+            }, 300);
+        }
+        
+        // 启动计时器
+        function startTimer() {
+            game.timer = setInterval(() => {
+                game.timeLeft--;
+                elements.timeDisplay.textContent = game.timeLeft;
+                updateTimeBar();
+                
+                if (game.timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+        
+        // 更新时间进度条
+        function updateTimeBar() {
+            const percentage = (game.timeLeft / CONFIG.timeLimit) * 100;
+            elements.timeBar.style.width = `${percentage}%`;
+            elements.timePercent.textContent = `${Math.round(percentage)}% 时间剩余`;
+            
+            // 时间不多时改变颜色提醒
+            if (percentage < 20) {
+                elements.timeBar.classList.remove('bg-secondary');
+                elements.timeBar.classList.add('bg-red-500');
+            } else {
+                elements.timeBar.classList.remove('bg-red-500');
+                elements.timeBar.classList.add('bg-secondary');
+            }
+        }
+        
+        // 结束游戏
+        function endGame() {
+            clearInterval(game.timer);
+            game.isProcessing = true;
+            
+            // 生成分享链接
+            generateShareLink();
+            
+            // 显示游戏结束弹窗
+            elements.finalScoreDisplay.textContent = game.score;
+            elements.gameOverModal.classList.remove('hidden');
+        }
+        
+        // 设置图片上传预览
+        function setupImageUploads() {
+            for (let i = 1; i <= CONFIG.tileTypes; i++) {
+                const input = document.getElementById(`img${i}`);
+                const preview = document.getElementById(`preview${i}`);
+                
+                input.addEventListener('change', (e) => {
+                    if (game.imagesSet) return;
+                    
+                    if (e.target.files && e.target.files[0]) {
+                        // 压缩图片以减少数据量
+                        const img = new Image();
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            img.onload = function() {
+                                // 创建画布用于压缩
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                
+                                // 设定最大尺寸
+                                const maxSize = 150;
+                                let width = img.width;
+                                let height = img.height;
+                                
+                                // 等比例缩小图片
+                                if (width > height) {
+                                    if (width > maxSize) {
+                                        height *= maxSize / width;
+                                        width = maxSize;
+                                    }
+                                } else {
+                                    if (height > maxSize) {
+                                        width *= maxSize / height;
+                                        height = maxSize;
+                                    }
+                                }
+                                
+                                canvas.width = width;
+                                canvas.height = height;
+                                ctx.drawImage(img, 0, 0, width, height);
+                                
+                                // 获取压缩后的图片数据
+                                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                                preview.src = compressedDataUrl;
+                            };
+                            img.src = event.target.result;
+                        };
+                        
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                });
+            }
+        }
+        
+        // 显示图片设置面板
+        function showSetupPanel() {
+            elements.imageSetupPanel.classList.remove('hidden');
+            elements.gameInfoPanel.classList.add('hidden');
+        }
+        
+        // 显示游戏信息面板
+        function showGamePanel() {
+            elements.imageSetupPanel.classList.add('hidden');
+            elements.gameInfoPanel.classList.remove('hidden');
+        }
+        
+        // 更新分享按钮状态
+        function updateShareButton() {
+            if (game.imagesSet) {
+                elements.shareBtn.classList.remove('hidden');
+            } else {
+                elements.shareBtn.classList.add('hidden');
+            }
+        }
+        
+        // 生成分享链接
+        function generateShareLink() {
+            // 确保有游戏ID
+            if (!game.gameId) {
+                game.gameId = generateGameId();
+                saveGameData();
+            }
+            
+            // 构建短链接
+            const baseUrl = window.location.origin + window.location.pathname;
+            game.shareUrl = `${baseUrl}?g=${game.gameId}`;
+            
+            // 更新分享链接输入框
+            elements.shareLink.value = game.shareUrl;
+        }
+        
+        // 事件监听
+        elements.resetBtn.addEventListener('click', initGame);
+        elements.playAgainBtn.addEventListener('click', () => {
+            elements.gameOverModal.classList.add('hidden');
+            initGame();
+        });
+        elements.confirmImagesBtn.addEventListener('click', () => {
+            elements.confirmModal.classList.remove('hidden');
+        });
+        elements.cancelConfirmBtn.addEventListener('click', () => {
+            elements.confirmModal.classList.add('hidden');
+        });
+        elements.acceptConfirmBtn.addEventListener('click', () => {
+            // 应用新图片
+            for (let i = 0; i < CONFIG.tileTypes; i++) {
+                const preview = document.getElementById(`preview${i + 1}`);
+                game.images[i] = preview.src;
+            }
+            
+            game.imagesSet = true;
+            saveUserConfig();  // 保存用户配置
+            saveGameData();    // 保存游戏数据用于分享
+            
+            elements.confirmModal.classList.add('hidden');
+            showGamePanel();
+            renderGrid();
+            startTimer();
+            updateShareButton();
+        });
+        elements.shareBtn.addEventListener('click', () => {
+            generateShareLink();
+            elements.shareModal.classList.remove('hidden');
+        });
+        elements.shareAfterGameBtn.addEventListener('click', () => {
+            elements.gameOverModal.classList.add('hidden');
+            generateShareLink();
+            elements.shareModal.classList.remove('hidden');
+        });
+        elements.closeShareBtn.addEventListener('click', () => {
+            elements.shareModal.classList.add('hidden');
+        });
+        elements.copyLinkBtn.addEventListener('click', () => {
+            elements.shareLink.select();
+            document.execCommand('copy');
+            
+            // 显示复制成功提示
+            const originalText = elements.copyLinkBtn.innerHTML;
+            elements.copyLinkBtn.innerHTML = '<i class="fa fa-check"></i>';
+            
+            setTimeout(() => {
+                elements.copyLinkBtn.innerHTML = originalText;
+            }, 2000);
+        });
+        
+        // 初始化图片上传处理
+        setupImageUploads();
+        
+        // 启动游戏
+        window.addEventListener('load', initGame);
+    </script>
+</body>
+</html>
